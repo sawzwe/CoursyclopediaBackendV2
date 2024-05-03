@@ -4,7 +4,6 @@ import (
 	"BackendCoursyclopedia/model/usermodel"
 	userrepo "BackendCoursyclopedia/repository/userrepository"
 	"context"
-	"errors"
 
 	"time"
 
@@ -118,9 +117,22 @@ func generateJWT(user *usermodel.User) (string, error) {
 }
 
 func (s *UserService) Login(ctx context.Context, email, password string) (*usermodel.User, string, error) {
-	user, err := s.UserRepository.GetUserByEmailLogin(ctx, email)
-	if err != nil || !CheckPasswordHash(password, user.Password) {
-		return nil, "", errors.New("invalid credentials")
+	// user, err := s.UserRepository.GetUserByEmailLogin(ctx, email)
+	// if err != nil || !CheckPasswordHash(password, user.Password) {
+	// 	return nil, "", errors.New("invalid credentials")
+	// }
+
+	user, err := s.UserRepository.GetUserByEmail(ctx, email)
+	if err != nil {
+		// User doesn't exist, create a new user with the provided email
+		newUser := usermodel.User{
+			Email: email,
+			// Set other default values for the new user if needed
+		}
+		user, err = s.UserRepository.CreateUser(ctx, newUser)
+		if err != nil {
+			return nil, "", err
+		}
 	}
 
 	// Generate JWT token

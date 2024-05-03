@@ -7,6 +7,7 @@ import (
 	"BackendCoursyclopedia/handler/majorhandler"
 	"BackendCoursyclopedia/handler/subjecthandler"
 	"BackendCoursyclopedia/handler/userhandler"
+
 	"BackendCoursyclopedia/middleware"
 	"BackendCoursyclopedia/repository/facultyrepository"
 	"BackendCoursyclopedia/repository/majorrepository"
@@ -49,6 +50,8 @@ func Setup(app *fiber.App) {
 		return c.SendString("Welcome to the API")
 	})
 
+	app.Post("/api/users/login", userHandler.Login)
+
 	protectedUserGroup := app.Group("/api/users", middleware.JWTMiddleware)
 	protectedUserGroup.Get("/getallusers", userHandler.GetUsers)
 	protectedUserGroup.Get("/getoneuser/:id", userHandler.GetOneUser)
@@ -58,7 +61,7 @@ func Setup(app *fiber.App) {
 	protectedUserGroup.Put("/updateoneuser/:id", userHandler.UpdateOneUser)
 	protectedUserGroup.Delete("/dropallusers", userHandler.DropAllUsers)
 
-	app.Post("/api/users/login", userHandler.Login)
+	// app.Post("/api/users/login", userHandler.Login)
 
 	// userGroup := app.Group("/api/users")
 	// // userGroup := app.Group("/api/users", jwtmiddleware.JWTAuthMiddleware)
