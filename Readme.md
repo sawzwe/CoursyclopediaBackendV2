@@ -1,7 +1,7 @@
 
 # Cousryclopedia Backend
 
-This is the api endpoints for the Coursyclopedia application using go language with fiber framework. Below is the project structure.
+This is the api endpoints for the Coursyclopedia application using go language with fiber framework. Below is the project structure. MiddleWareAdded
 
 ## directory
 
