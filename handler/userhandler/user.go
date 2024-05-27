@@ -19,6 +19,7 @@ type IUserHandler interface {
 	GetUserByEmail(c *fiber.Ctx) error
 	DropAllUsers(c *fiber.Ctx) error
 	Login(c *fiber.Ctx) error
+	GoogleLogin(c *fiber.Ctx) error
 }
 
 type UserHandler struct {
@@ -184,24 +185,41 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
-
-	// Parse the login request body
 	if err := c.BodyParser(&loginRequest); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Bad request"})
 	}
 
-	// Use the UserService.Login method to authenticate the user and generate a JWT token
 	user, token, err := h.UserService.Login(c.Context(), loginRequest.Email, loginRequest.Password)
 	if err != nil {
-		// For security, don't reveal whether the email or password was incorrect
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid credentials"})
 	}
 
-	// Login successful, return the JWT token in the response
 	return c.JSON(fiber.Map{
 		"message": "Login successful",
 		"data":    user.Profile,
-		"token":   token, // Include the JWT token in the response
+		"token":   token,
+	})
+}
+
+func (h *UserHandler) GoogleLogin(c *fiber.Ctx) error {
+	var loginRequest struct {
+		Email      string `json:"email"`
+		FirebaseID string `json:"firebase_id"`
+	}
+
+	if err := c.BodyParser(&loginRequest); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Bad request"})
+	}
+
+	user, token, err := h.UserService.GoogleLogin(c.Context(), loginRequest.Email, loginRequest.FirebaseID)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid Google Account"})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Login successful",
+		"data":    user.Profile,
+		"token":   token,
 	})
 }
 

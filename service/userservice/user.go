@@ -4,6 +4,8 @@ import (
 	"BackendCoursyclopedia/model/usermodel"
 	userrepo "BackendCoursyclopedia/repository/userrepository"
 	"context"
+	"errors"
+	"fmt"
 
 	"time"
 
@@ -22,6 +24,7 @@ type IUserService interface {
 	UpdateSpecificByID(ctx context.Context, userID string, updateUser usermodel.User) (*usermodel.User, error)
 	DropAllUsers(ctx context.Context) error
 	Login(ctx context.Context, email, password string) (*usermodel.User, string, error)
+	GoogleLogin(ctx context.Context, email, firebaseId string) (*usermodel.User, string, error)
 }
 
 type UserService struct {
@@ -97,17 +100,16 @@ func (s *UserService) DropAllUsers(ctx context.Context) error {
 	return s.UserRepository.DropAllUsers(ctx)
 }
 
-// generateJWT generates a JWT token for authenticated users
 func generateJWT(user *usermodel.User) (string, error) {
-	expirationTime := time.Now().Add(24 * time.Hour) // Token is valid for 24 hours
+	expirationTime := time.Now().Add(2 * time.Hour)
 
 	claims := jwt.RegisteredClaims{
-		Subject:   user.ID.Hex(), // Use the user's ID as the subject
+		Subject:   user.ID.Hex(),
 		ExpiresAt: jwt.NewNumericDate(expirationTime),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(os.Getenv("JWTSECRET"))) // Use a secret key
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWTSECRET")))
 
 	if err != nil {
 		return "", err
@@ -117,21 +119,70 @@ func generateJWT(user *usermodel.User) (string, error) {
 }
 
 func (s *UserService) Login(ctx context.Context, email, password string) (*usermodel.User, string, error) {
-	// user, err := s.UserRepository.GetUserByEmailLogin(ctx, email)
-	// if err != nil || !CheckPasswordHash(password, user.Password) {
-	// 	return nil, "", errors.New("invalid credentials")
-	// }
-
 	user, err := s.UserRepository.GetUserByEmail(ctx, email)
 	if err != nil {
-		// User doesn't exist, create a new user with the provided email
+		return nil, "", errors.New("invalid credentials")
+	}
+
+	if !CheckPasswordHash(password, user.Password) {
+		return nil, "", errors.New("invalid credentials")
+	}
+
+	token, err := generateJWT(user)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return user, token, nil
+}
+
+// func (s *UserService) GoogleLogin(ctx context.Context, email, firebaseId string) (*usermodel.User, string, error) {
+
+// 	user, err := s.UserRepository.GetUserByEmail(ctx, email)
+// 	if err != nil {
+// 		return nil, "", fmt.Errorf("user with email %s not found", email)
+// 	}
+
+// 	if user.Profile.FirebaseId != firebaseId {
+// 		return nil, "", errors.New("invalid Firebase ID")
+// 	}
+
+// 	token, err := generateJWT(user)
+// 	if err != nil {
+// 		return nil, "", err
+// 	}
+
+// 	return user, token, nil
+// }
+
+func (s *UserService) GoogleLogin(ctx context.Context, email, firebaseId string) (*usermodel.User, string, error) {
+	user, err := s.UserRepository.GetUserByEmail(ctx, email)
+	if err != nil {
 		newUser := usermodel.User{
 			Email: email,
-			// Set other default values for the new user if needed
+			Profile: struct {
+				FirstName  string `bson:"firstName"`
+				LastName   string `bson:"lastName"`
+				FirebaseId string `bson:"firebaseId"`
+			}{
+				FirebaseId: firebaseId,
+			},
+			Status: "active",
+			Role: usermodel.Role{
+				Name:        "user",
+				Slug:        "user",
+				Description: "Default user role",
+				Permissions: []string{},
+			},
 		}
-		user, err = s.UserRepository.CreateUser(ctx, newUser)
+		user, err = s.CreateNewUser(ctx, newUser)
 		if err != nil {
-			return nil, "", err
+			return nil, "", fmt.Errorf("failed to create new user: %v", err)
+		}
+	} else {
+		// If user found, check if the provided Firebase ID matches the stored Firebase ID
+		if user.Profile.FirebaseId != firebaseId {
+			return nil, "", errors.New("invalid Firebase ID")
 		}
 	}
 

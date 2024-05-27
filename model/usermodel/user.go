@@ -58,8 +58,9 @@ type User struct {
 	Wishlists   []primitive.ObjectID `bson:"wishlists"`
 	PhoneNumber string               `bson:"phoneNumber"`
 	Profile     struct {
-		FirstName string `bson:"firstName"`
-		LastName  string `bson:"lastName"`
+		FirstName  string `bson:"firstName"`
+		LastName   string `bson:"lastName"`
+		FirebaseId string `bson:"firebaseId"`
 	} `bson:"profile"`
 	FacultyID primitive.ObjectID `bson:"facultyId,omitempty"`
 	Status    string             `bson:"status"`
